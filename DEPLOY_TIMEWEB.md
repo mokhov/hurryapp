@@ -1,9 +1,10 @@
 # Deploy on Timeweb
 
-This project has 3 long-running processes:
+This project has 4 long-running processes:
 - web app (`Fastify`)
 - `NextMetroEkbBot` Telegram bot
 - `NextMetroSamaraBot` Telegram bot
+- `NextMetroOmskBot` Telegram bot
 
 The most practical way on Timeweb is a VPS + PM2.
 
@@ -41,6 +42,7 @@ PORT=3000
 
 NEXT_METRO_EKB_BOT_TOKEN=your_ekb_bot_token
 NEXT_METRO_SAMARA_BOT_TOKEN=your_samara_bot_token
+NEXT_METRO_OMSK_BOT_TOKEN=your_omsk_bot_token
 ```
 
 ## 5) Build and run all processes
@@ -59,6 +61,7 @@ pm2 status
 pm2 logs hurrytrain-web
 pm2 logs next-metro-ekb-bot
 pm2 logs next-metro-samara-bot
+pm2 logs next-metro-omsk-bot
 ```
 
 ## 6) Put Nginx in front of Node
