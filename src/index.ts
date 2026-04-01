@@ -138,6 +138,40 @@ app.get("/next-train", async (_request, reply) => {
       const fromStations = document.getElementById("from-stations");
       const toStations = document.getElementById("to-stations");
       const resultEl = document.getElementById("result");
+      const cityTimeZones = {
+        samara: "Europe/Samara",
+        ekaterinburg: "Asia/Yekaterinburg",
+      };
+
+      function getZonedNowParts(timeZone) {
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone,
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }).formatToParts(new Date());
+        const values = Object.fromEntries(
+          parts.filter((p) => p.type !== "literal").map((p) => [p.type, p.value])
+        );
+        const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+        return {
+          day: dayMap[values.weekday] ?? 0,
+          hour: Number(values.hour ?? 0),
+          minute: Number(values.minute ?? 0),
+          second: Number(values.second ?? 0),
+        };
+      }
+
+      function getDayTypeFromZonedDay(day) {
+        return day === 0 || day === 6 ? "weekendsAndHolidays" : "weekdays";
+      }
+
+      function getNowOperationalMinutesZoned(zoned) {
+        const minute = zoned.hour * 60 + zoned.minute + zoned.second / 60;
+        return minute < 180 ? minute + 1440 : minute;
+      }
 
       function parseClockToMinutes(value) {
         if (!value) return null;
@@ -152,11 +186,6 @@ app.get("/next-train", async (_request, reply) => {
           return (a + b) / 2;
         }
         return Number(value);
-      }
-
-      function getDayType(now) {
-        const day = now.getDay();
-        return day === 0 || day === 6 ? "weekendsAndHolidays" : "weekdays";
       }
 
       function intervalForMinute(data, dayType, minuteOfDay) {
@@ -174,23 +203,19 @@ app.get("/next-train", async (_request, reply) => {
         return parseIntervalMinutes(ranges[ranges.length - 1].minutes);
       }
 
-      function getNowOperationalMinutes(now) {
-        const minute = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
-        return minute < 180 ? minute + 1440 : minute;
-      }
-
       function normalizeDepartureMinute(minute, firstMinuteHint) {
         if (firstMinuteHint === null) return minute;
         return minute < firstMinuteHint ? minute + 1440 : minute;
       }
 
-      function computeNextTrainFromDetailed(data, station, directionKey, now) {
+      function computeNextTrainFromDetailed(data, station, directionKey, timeZone) {
         const detailed = data.detailedDepartures;
         if (!detailed) return null;
         const stationData = detailed[station];
         if (!stationData || !stationData[directionKey]) return null;
 
-        const dayType = getDayType(now);
+        const zoned = getZonedNowParts(timeZone);
+        const dayType = getDayTypeFromZonedDay(zoned.day);
         const departures = stationData[directionKey][dayType];
         if (!Array.isArray(departures) || departures.length === 0) return null;
 
@@ -198,7 +223,7 @@ app.get("/next-train", async (_request, reply) => {
         if (parsed.length === 0) return null;
 
         const first = Math.min(...parsed);
-        const nowOp = getNowOperationalMinutes(now);
+        const nowOp = getNowOperationalMinutesZoned(zoned);
         const operational = parsed
           .map((minute) => normalizeDepartureMinute(minute, first))
           .sort((a, b) => a - b);
@@ -211,12 +236,13 @@ app.get("/next-train", async (_request, reply) => {
         return { ended: true, mode: "расписание" };
       }
 
-      function computeNextTrainByIntervals(data, station, directionKey, now) {
+      function computeNextTrainByIntervals(data, station, directionKey, timeZone) {
         const stationSchedule = data.firstLastDepartures?.[station];
         if (!stationSchedule || !stationSchedule[directionKey]) return null;
         const directionSchedule = stationSchedule[directionKey];
 
-        const dayType = getDayType(now);
+        const zoned = getZonedNowParts(timeZone);
+        const dayType = getDayTypeFromZonedDay(zoned.day);
         const first = parseClockToMinutes(
           dayType === "weekdays" ? directionSchedule.weekdayFirst : directionSchedule.weekendFirst
         );
@@ -226,7 +252,7 @@ app.get("/next-train", async (_request, reply) => {
         if (first === null || lastRaw === null) return null;
 
         const last = lastRaw < first ? lastRaw + 1440 : lastRaw;
-        const nowOp = getNowOperationalMinutes(now);
+        const nowOp = getNowOperationalMinutesZoned(zoned);
         if (nowOp > last) return { ended: true, mode: "интервалы" };
         if (nowOp <= first) return { waitMinutes: first - nowOp, nextAt: first, mode: "интервалы" };
 
@@ -240,10 +266,10 @@ app.get("/next-train", async (_request, reply) => {
         return { ended: true, mode: "интервалы" };
       }
 
-      function computeNextTrain(data, station, directionKey, now) {
+      function computeNextTrain(data, station, directionKey, timeZone) {
         return (
-          computeNextTrainFromDetailed(data, station, directionKey, now) ||
-          computeNextTrainByIntervals(data, station, directionKey, now)
+          computeNextTrainFromDetailed(data, station, directionKey, timeZone) ||
+          computeNextTrainByIntervals(data, station, directionKey, timeZone)
         );
       }
 
@@ -308,8 +334,7 @@ app.get("/next-train", async (_request, reply) => {
         }
 
         const directionKey = toIdx < fromIdx ? "toYungorodok" : "toAlabinskaya";
-        const now = new Date();
-        const next = computeNextTrain(data, fromStation, directionKey, now);
+        const next = computeNextTrain(data, fromStation, directionKey, cityTimeZones[city]);
 
         resultEl.classList.remove("hidden");
         if (!next) {
@@ -528,6 +553,45 @@ app.get("/metro", async (_request, reply) => {
       let currentStation = metros[currentCity].data.stations[0];
       let hasStateFromUrl = false;
 
+      const cityTimeZonesMetro = {
+        samara: "Europe/Samara",
+        ekaterinburg: "Asia/Yekaterinburg",
+      };
+
+      function metroTimeZone() {
+        return cityTimeZonesMetro[currentCity];
+      }
+
+      function getZonedNowPartsMetro(timeZone) {
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone,
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }).formatToParts(new Date());
+        const values = Object.fromEntries(
+          parts.filter((p) => p.type !== "literal").map((p) => [p.type, p.value])
+        );
+        const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+        return {
+          day: dayMap[values.weekday] ?? 0,
+          hour: Number(values.hour ?? 0),
+          minute: Number(values.minute ?? 0),
+          second: Number(values.second ?? 0),
+        };
+      }
+
+      function getDayTypeFromZonedDayMetro(day) {
+        return day === 0 || day === 6 ? "weekendsAndHolidays" : "weekdays";
+      }
+
+      function getNowOperationalMinutesZonedMetro(zoned) {
+        const minute = zoned.hour * 60 + zoned.minute + zoned.second / 60;
+        return minute < 180 ? minute + 1440 : minute;
+      }
+
       function currentMetro() {
         return metros[currentCity];
       }
@@ -558,8 +622,9 @@ app.get("/metro", async (_request, reply) => {
         window.history.replaceState({}, "", url);
       }
 
-      function formatClock(date) {
-        return date.toLocaleTimeString("ru-RU", {
+      function formatClockMetroCity() {
+        return new Date().toLocaleTimeString("ru-RU", {
+          timeZone: metroTimeZone(),
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
@@ -579,11 +644,6 @@ app.get("/metro", async (_request, reply) => {
           return (a + b) / 2;
         }
         return Number(value);
-      }
-
-      function getDayType(now) {
-        const day = now.getDay();
-        return day === 0 || day === 6 ? "weekendsAndHolidays" : "weekdays";
       }
 
       function intervalForMinute(dayType, minuteOfDay) {
@@ -652,24 +712,20 @@ app.get("/metro", async (_request, reply) => {
         return new Date(baseDate.getTime() + (minutes * 60 + seconds) * 1000);
       }
 
-      function getNowOperationalMinutes(now) {
-        const minute = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
-        return minute < 180 ? minute + 1440 : minute;
-      }
-
       function normalizeDepartureMinute(minute, firstMinuteHint) {
         if (firstMinuteHint === null) return minute;
         return minute < firstMinuteHint ? minute + 1440 : minute;
       }
 
-      function computeNextTrainFromDetailed(directionKey, now) {
+      function computeNextTrainFromDetailed(directionKey) {
         const data = currentMetro().data;
         const detailed = data.detailedDepartures;
         if (!detailed) return null;
         const station = detailed[currentStation];
         if (!station) return null;
 
-        const dayType = getDayType(now);
+        const zoned = getZonedNowPartsMetro(metroTimeZone());
+        const dayType = getDayTypeFromZonedDayMetro(zoned.day);
         const direction = station[directionKey];
         if (!direction) return null;
         const departures = direction[dayType];
@@ -681,7 +737,7 @@ app.get("/metro", async (_request, reply) => {
         if (parsed.length === 0) return null;
 
         const first = Math.min(...parsed);
-        const nowOp = getNowOperationalMinutes(now);
+        const nowOp = getNowOperationalMinutesZonedMetro(zoned);
         const operational = parsed
           .map((minute) => normalizeDepartureMinute(minute, first))
           .sort((a, b) => a - b);
@@ -695,9 +751,9 @@ app.get("/metro", async (_request, reply) => {
         return { ended: true };
       }
 
-      function computeNextTrain(directionKey, now) {
+      function computeNextTrain(directionKey) {
         const data = currentMetro().data;
-        const byDetailedSchedule = computeNextTrainFromDetailed(directionKey, now);
+        const byDetailedSchedule = computeNextTrainFromDetailed(directionKey);
         if (byDetailedSchedule) return byDetailedSchedule;
 
         const stationSchedule = data.firstLastDepartures[currentStation];
@@ -705,7 +761,8 @@ app.get("/metro", async (_request, reply) => {
         const directionSchedule = stationSchedule[directionKey];
         if (!directionSchedule) return null;
 
-        const dayType = getDayType(now);
+        const zoned = getZonedNowPartsMetro(metroTimeZone());
+        const dayType = getDayTypeFromZonedDayMetro(zoned.day);
         const first = parseClockToMinutes(
           dayType === "weekdays" ? directionSchedule.weekdayFirst : directionSchedule.weekendFirst
         );
@@ -715,7 +772,7 @@ app.get("/metro", async (_request, reply) => {
         if (first === null || lastRaw === null) return null;
 
         const last = lastRaw < first ? lastRaw + 1440 : lastRaw;
-        const nowOp = getNowOperationalMinutes(now);
+        const nowOp = getNowOperationalMinutesZonedMetro(zoned);
         if (nowOp > last) return { ended: true };
         if (nowOp <= first) return { waitMinutes: first - nowOp, nextAt: first };
 
@@ -766,9 +823,8 @@ app.get("/metro", async (_request, reply) => {
 
         const titleY = normalizeDirectionTitle(labels.toYungorodok);
         const titleA = normalizeDirectionTitle(labels.toAlabinskaya);
-        const now = new Date();
-        const toY = computeNextTrain("toYungorodok", now);
-        const toA = computeNextTrain("toAlabinskaya", now);
+        const toY = computeNextTrain("toYungorodok");
+        const toA = computeNextTrain("toAlabinskaya");
 
         if (!toY) {
           nextToYungorodokEl.innerHTML =
@@ -806,7 +862,7 @@ app.get("/metro", async (_request, reply) => {
       }
 
       function updateCurrentTime() {
-        currentTimeEl.textContent = formatClock(new Date());
+        currentTimeEl.textContent = formatClockMetroCity();
         renderTimes();
         renderNextTrains();
       }
@@ -818,8 +874,8 @@ app.get("/metro", async (_request, reply) => {
         if (!row) return;
         const now = new Date();
         const currentIndex = data.stations.indexOf(currentStation);
-        const nextToStart = computeNextTrain("toYungorodok", now);
-        const nextToEnd = computeNextTrain("toAlabinskaya", now);
+        const nextToStart = computeNextTrain("toYungorodok");
+        const nextToEnd = computeNextTrain("toAlabinskaya");
 
         data.stations.forEach((toStation) => {
           const tr = document.createElement("tr");
