@@ -217,21 +217,39 @@ function cityKeyboard() {
   };
 }
 
+function startKeyboard() {
+  return {
+    inline_keyboard: [[{ text: "Следующий поезд", callback_data: "menu:next-train" }]],
+  };
+}
+
 function stationsKeyboard(stations: string[]) {
   const buttons: InlineKeyboardButton[] = stations.map((s) => ({ text: s, callback_data: `station:${s}` }));
   return { inline_keyboard: rows(buttons, 2) };
 }
 
+function nextTrainKeyboard(city: "samara" | "ekaterinburg", station: string) {
+  return {
+    inline_keyboard: [[{ text: "Другая станция", callback_data: "menu:next-train" }]],
+  };
+}
+
 bot.onText(/\/start|\/next/, async (msg: Message) => {
   if (!msg.chat) return;
   sessions.set(msg.chat.id, {});
-  await bot.sendMessage(msg.chat.id, "1/3 Выберите город", { reply_markup: cityKeyboard() });
+  await bot.sendMessage(msg.chat.id, "Выберите действие", { reply_markup: startKeyboard() });
 });
 
 bot.on("callback_query", async (q: CallbackQuery) => {
   if (!q.message?.chat?.id || !q.data) return;
   const chatId = q.message.chat.id;
   const s = getSession(chatId);
+
+  if (q.data === "menu:next-train") {
+    await bot.sendMessage(chatId, "Выберите город", { reply_markup: cityKeyboard() });
+    await bot.answerCallbackQuery(q.id);
+    return;
+  }
 
   if (q.data.startsWith("city:")) {
     const city = q.data.split(":")[1] as "samara" | "ekaterinburg";
@@ -245,22 +263,26 @@ bot.on("callback_query", async (q: CallbackQuery) => {
     return;
   }
 
-  if (q.data.startsWith("station:")) {
-    if (!s.city) return;
-    s.from = q.data.slice(8);
+  const refreshMatch = q.data.match(/^refresh:(samara|ekaterinburg):(.*)$/);
+  const selectedStation = q.data.startsWith("station:") ? q.data.slice(8) : refreshMatch ? refreshMatch[2] : null;
+  const selectedCity = refreshMatch ? (refreshMatch[1] as "samara" | "ekaterinburg") : s.city;
+  if (selectedStation && selectedCity) {
+    const city = selectedCity;
+    s.city = city;
+    s.from = selectedStation;
     const fromStation = s.from;
-    const selectionKey = `${s.city}:station:${fromStation}`;
+    const selectionKey = `${city}:station:${fromStation}`;
     const nowMs = Date.now();
-    if (s.lastSelectionKey === selectionKey && nowMs - (s.lastSelectionAt ?? 0) < 2000) {
+    if (q.data.startsWith("station:") && s.lastSelectionKey === selectionKey && nowMs - (s.lastSelectionAt ?? 0) < 2000) {
       await bot.answerCallbackQuery(q.id);
       return;
     }
     s.lastSelectionKey = selectionKey;
     s.lastSelectionAt = nowMs;
-    if (q.message.message_id) {
+    if (q.data.startsWith("station:") && q.message.message_id) {
       await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: q.message.message_id }).catch(() => {});
     }
-    const data = metros[s.city];
+    const data = metros[city];
     const fromIdx = data.stations.indexOf(fromStation);
     if (fromIdx < 0) {
       await bot.answerCallbackQuery(q.id);
@@ -273,7 +295,7 @@ bot.on("callback_query", async (q: CallbackQuery) => {
 
     const lines: string[] = [];
     for (const direction of directions) {
-      const next = computeNextTrain(data, fromStation, direction.key, cityTimeZones[s.city]);
+      const next = computeNextTrain(data, fromStation, direction.key, cityTimeZones[city]);
       if (!next) {
         lines.push(`До ${stationGenitive(direction.terminal)} нет данных.`);
         continue;
@@ -286,7 +308,9 @@ bot.on("callback_query", async (q: CallbackQuery) => {
     }
     const headerTail = lines.length === 1 ? "ближайший поезд" : "ближайшие поезда";
     const header = `Станция «${fromStation}», ${headerTail}`;
-    await bot.sendMessage(chatId, `${header}\n${lines.join("\n")}`);
+    await bot.sendMessage(chatId, `${header}\n${lines.join("\n")}`, {
+      reply_markup: nextTrainKeyboard(city, fromStation),
+    });
 
     await bot.answerCallbackQuery(q.id);
   }

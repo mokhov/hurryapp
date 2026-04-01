@@ -159,11 +159,23 @@ function stationsKeyboard(stations: string[]) {
   return { inline_keyboard: rows(buttons, 2) };
 }
 
+function startKeyboard() {
+  return {
+    inline_keyboard: [[{ text: "Следующий поезд", callback_data: "menu:next-train" }]],
+  };
+}
+
+function nextTrainKeyboard(station: string) {
+  return {
+    inline_keyboard: [[{ text: "Другая станция", callback_data: "menu:next-train" }]],
+  };
+}
+
 bot.onText(/\/start|\/next/, async (msg: Message) => {
   if (!msg.chat) return;
   sessions.set(msg.chat.id, {});
-  await bot.sendMessage(msg.chat.id, "Откуда едете", {
-    reply_markup: stationsKeyboard(samaraMetroIntervals.stations),
+  await bot.sendMessage(msg.chat.id, "Нажмите кнопку, чтобы выбрать станцию", {
+    reply_markup: startKeyboard(),
   });
 });
 
@@ -172,18 +184,27 @@ bot.on("callback_query", async (q: CallbackQuery) => {
   const chatId = q.message.chat.id;
   const s = getSession(chatId);
 
-  if (q.data.startsWith("station:")) {
-    s.from = q.data.slice(8);
+  if (q.data === "menu:next-train") {
+    await bot.sendMessage(chatId, "Откуда едете", {
+      reply_markup: stationsKeyboard(samaraMetroIntervals.stations),
+    });
+    await bot.answerCallbackQuery(q.id);
+    return;
+  }
+
+  const selectedStation = q.data.startsWith("station:") ? q.data.slice(8) : q.data.startsWith("refresh:") ? q.data.slice(8) : null;
+  if (selectedStation) {
+    s.from = selectedStation;
     const fromStation = s.from;
     const selectionKey = `station:${fromStation}`;
     const nowMs = Date.now();
-    if (s.lastSelectionKey === selectionKey && nowMs - (s.lastSelectionAt ?? 0) < 2000) {
+    if (q.data.startsWith("station:") && s.lastSelectionKey === selectionKey && nowMs - (s.lastSelectionAt ?? 0) < 2000) {
       await bot.answerCallbackQuery(q.id);
       return;
     }
     s.lastSelectionKey = selectionKey;
     s.lastSelectionAt = nowMs;
-    if (q.message.message_id) {
+    if (q.data.startsWith("station:") && q.message.message_id) {
       await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: q.message.message_id }).catch(() => {});
     }
     const stations = samaraMetroIntervals.stations;
@@ -212,7 +233,9 @@ bot.on("callback_query", async (q: CallbackQuery) => {
     }
     const headerTail = lines.length === 1 ? "ближайший поезд" : "ближайшие поезда";
     const header = `Станция «${fromStation}», ${headerTail}`;
-    await bot.sendMessage(chatId, `${header}\n${lines.join("\n")}`);
+    await bot.sendMessage(chatId, `${header}\n${lines.join("\n")}`, {
+      reply_markup: nextTrainKeyboard(fromStation),
+    });
 
     await bot.answerCallbackQuery(q.id);
   }

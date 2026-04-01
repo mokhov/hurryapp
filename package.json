@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "dev:bot": "tsx watch src/bot.ts",
     "dev:bot:ekb": "tsx watch src/bot-ekb.ts",
+    "dev:bot:ekb:test": "tsx watch src/bot-ekb-test.ts",
     "dev:bot:samara": "tsx watch src/bot-samara.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
