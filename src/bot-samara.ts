@@ -10,7 +10,7 @@ if (!token) {
 }
 
 type DirectionKey = "toYungorodok" | "toAlabinskaya";
-type Session = { from?: string };
+type Session = { from?: string; lastSelectionKey?: string; lastSelectionAt?: number };
 const SAMARA_TIME_ZONE = "Europe/Samara";
 
 const sessions = new Map<number, Session>();
@@ -175,6 +175,17 @@ bot.on("callback_query", async (q: CallbackQuery) => {
   if (q.data.startsWith("station:")) {
     s.from = q.data.slice(8);
     const fromStation = s.from;
+    const selectionKey = `station:${fromStation}`;
+    const nowMs = Date.now();
+    if (s.lastSelectionKey === selectionKey && nowMs - (s.lastSelectionAt ?? 0) < 2000) {
+      await bot.answerCallbackQuery(q.id);
+      return;
+    }
+    s.lastSelectionKey = selectionKey;
+    s.lastSelectionAt = nowMs;
+    if (q.message.message_id) {
+      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: q.message.message_id }).catch(() => {});
+    }
     const stations = samaraMetroIntervals.stations;
     const fromIdx = stations.indexOf(fromStation);
     if (fromIdx < 0) {
@@ -199,7 +210,8 @@ bot.on("callback_query", async (q: CallbackQuery) => {
       }
       lines.push(`До ${stationGenitive(direction.terminal)} через ${formatWait(next.waitMinutes)} (в ${minuteToClock(next.nextAt)})`);
     }
-    const header = `Станция «${fromStation}», ближайшие поезда`;
+    const headerTail = lines.length === 1 ? "ближайший поезд" : "ближайшие поезда";
+    const header = `Станция «${fromStation}», ${headerTail}`;
     await bot.sendMessage(chatId, `${header}\n${lines.join("\n")}`);
 
     await bot.answerCallbackQuery(q.id);
