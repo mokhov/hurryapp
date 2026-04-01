@@ -9,11 +9,13 @@
     "dev:bot:ekb": "tsx watch src/bot-ekb.ts",
     "dev:bot:ekb:test": "tsx watch src/bot-ekb-test.ts",
     "dev:bot:samara": "tsx watch src/bot-samara.ts",
+    "dev:bot:omsk": "tsx watch src/bot-omsk.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "start:web": "node dist/index.js",
     "start:bot:ekb": "node dist/bot-ekb.js",
     "start:bot:samara": "node dist/bot-samara.js",
+    "start:bot:omsk": "node dist/bot-omsk.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "keywords": [
