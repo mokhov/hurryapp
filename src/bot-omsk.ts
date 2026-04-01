@@ -84,7 +84,7 @@ bot.on("callback_query", async (q: CallbackQuery) => {
     if (q.message.message_id) {
       await bot.deleteMessage(chatId, q.message.message_id).catch(() => {});
     }
-    const text = `Станция «${OMSK_STATION}»\n\nБлижайшие поезда будут через 100 лет.`;
+    const text = `Станция «${OMSK_STATION}»\n\nБлижайшие поезда будут через 100 лет. Но это не точно :)`;
     await bot.sendMessage(chatId, text, { reply_markup: againKeyboard() });
     await bot.answerCallbackQuery(q.id);
   }
