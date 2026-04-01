@@ -19,6 +19,10 @@ const metros: Record<"samara" | "ekaterinburg", MetroData> = {
   samara: samaraMetroIntervals,
   ekaterinburg: ekaterinburgMetro as unknown as MetroData,
 };
+const cityTimeZones: Record<"samara" | "ekaterinburg", string> = {
+  samara: "Europe/Samara",
+  ekaterinburg: "Asia/Yekaterinburg",
+};
 
 const sessions = new Map<number, Session>();
 const bot = new TelegramBot(token, { polling: true });
@@ -68,8 +72,7 @@ function parseIntervalMinutes(value: string): number {
   return Number(value);
 }
 
-function getDayType(now: Date): "weekdays" | "weekendsAndHolidays" {
-  const day = now.getDay();
+function getDayType(day: number): "weekdays" | "weekendsAndHolidays" {
   return day === 0 || day === 6 ? "weekendsAndHolidays" : "weekdays";
 }
 
@@ -88,8 +91,27 @@ function intervalForMinute(data: MetroData, dayType: "weekdays" | "weekendsAndHo
   return parseIntervalMinutes(ranges[ranges.length - 1].minutes);
 }
 
-function getNowOperationalMinutes(now: Date): number {
-  const minute = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+function getZonedNowParts(timeZone: string): { day: number; hour: number; minute: number; second: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.filter((p) => p.type !== "literal").map((p) => [p.type, p.value]));
+  const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    day: dayMap[values.weekday] ?? 0,
+    hour: Number(values.hour ?? 0),
+    minute: Number(values.minute ?? 0),
+    second: Number(values.second ?? 0),
+  };
+}
+
+function getNowOperationalMinutes(now: { hour: number; minute: number; second: number }): number {
+  const minute = now.hour * 60 + now.minute + now.second / 60;
   return minute < 180 ? minute + 1440 : minute;
 }
 
@@ -98,14 +120,15 @@ function normalizeDepartureMinute(minute: number, firstMinuteHint: number | null
   return minute < firstMinuteHint ? minute + 1440 : minute;
 }
 
-function computeNextTrainFromDetailed(data: MetroData, station: string, directionKey: DirectionKey, now: Date) {
+function computeNextTrainFromDetailed(data: MetroData, station: string, directionKey: DirectionKey, timeZone: string) {
   const detailed = (data as Record<string, unknown>).detailedDepartures as
     | Record<string, Record<DirectionKey, Record<string, string[]>>>
     | undefined;
   if (!detailed) return null;
   const stationData = detailed[station];
   if (!stationData || !stationData[directionKey]) return null;
-  const dayType = getDayType(now);
+  const zonedNow = getZonedNowParts(timeZone);
+  const dayType = getDayType(zonedNow.day);
   const departures = stationData[directionKey][dayType];
   if (!Array.isArray(departures) || departures.length === 0) return null;
 
@@ -113,7 +136,7 @@ function computeNextTrainFromDetailed(data: MetroData, station: string, directio
   if (!parsed.length) return null;
 
   const first = Math.min(...parsed);
-  const nowOp = getNowOperationalMinutes(now);
+  const nowOp = getNowOperationalMinutes(zonedNow);
   const operational = parsed.map((m) => normalizeDepartureMinute(m, first)).sort((a, b) => a - b);
   for (const dep of operational) {
     if (dep >= nowOp) return { waitMinutes: dep - nowOp, nextAt: dep };
@@ -121,7 +144,7 @@ function computeNextTrainFromDetailed(data: MetroData, station: string, directio
   return { ended: true as const };
 }
 
-function computeNextTrainByIntervals(data: MetroData, station: string, directionKey: DirectionKey, now: Date) {
+function computeNextTrainByIntervals(data: MetroData, station: string, directionKey: DirectionKey, timeZone: string) {
   const firstLast = data.firstLastDepartures as Record<
     string,
     Record<DirectionKey, { weekdayFirst: string | null; weekendFirst: string | null; weekdayLast: string | null; weekendLast: string | null }>
@@ -129,13 +152,14 @@ function computeNextTrainByIntervals(data: MetroData, station: string, direction
   const stationSchedule = firstLast?.[station]?.[directionKey];
   if (!stationSchedule) return null;
 
-  const dayType = getDayType(now);
+  const zonedNow = getZonedNowParts(timeZone);
+  const dayType = getDayType(zonedNow.day);
   const first = parseClockToMinutes(dayType === "weekdays" ? stationSchedule.weekdayFirst : stationSchedule.weekendFirst);
   const lastRaw = parseClockToMinutes(dayType === "weekdays" ? stationSchedule.weekdayLast : stationSchedule.weekendLast);
   if (first === null || lastRaw === null) return null;
 
   const last = lastRaw < first ? lastRaw + 1440 : lastRaw;
-  const nowOp = getNowOperationalMinutes(now);
+  const nowOp = getNowOperationalMinutes(zonedNow);
   if (nowOp > last) return { ended: true as const };
   if (nowOp <= first) return { waitMinutes: first - nowOp, nextAt: first };
 
@@ -149,8 +173,8 @@ function computeNextTrainByIntervals(data: MetroData, station: string, direction
   return { ended: true as const };
 }
 
-function computeNextTrain(data: MetroData, station: string, directionKey: DirectionKey, now: Date) {
-  return computeNextTrainFromDetailed(data, station, directionKey, now) || computeNextTrainByIntervals(data, station, directionKey, now);
+function computeNextTrain(data: MetroData, station: string, directionKey: DirectionKey, timeZone: string) {
+  return computeNextTrainFromDetailed(data, station, directionKey, timeZone) || computeNextTrainByIntervals(data, station, directionKey, timeZone);
 }
 
 function plural(value: number, one: string, two: string, five: string): string {
@@ -238,7 +262,7 @@ bot.on("callback_query", async (q: CallbackQuery) => {
 
     const lines: string[] = [];
     for (const direction of directions) {
-      const next = computeNextTrain(data, fromStation, direction.key, new Date());
+      const next = computeNextTrain(data, fromStation, direction.key, cityTimeZones[s.city]);
       if (!next) {
         lines.push(`До ${stationGenitive(direction.terminal)} нет данных.`);
         continue;

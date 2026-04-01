@@ -11,6 +11,7 @@ if (!token) {
 
 type DirectionKey = "toYungorodok" | "toAlabinskaya";
 type Session = { from?: string };
+const SAMARA_TIME_ZONE = "Europe/Samara";
 
 const sessions = new Map<number, Session>();
 const bot = new TelegramBot(token, { polling: true });
@@ -52,8 +53,7 @@ function parseIntervalMinutes(value: string): number {
   return Number(value);
 }
 
-function getDayType(now: Date): "weekdays" | "weekendsAndHolidays" {
-  const day = now.getDay();
+function getDayType(day: number): "weekdays" | "weekendsAndHolidays" {
   return day === 0 || day === 6 ? "weekendsAndHolidays" : "weekdays";
 }
 
@@ -72,12 +72,31 @@ function intervalForMinute(dayType: "weekdays" | "weekendsAndHolidays", minuteOf
   return parseIntervalMinutes(ranges[ranges.length - 1].minutes);
 }
 
-function getNowOperationalMinutes(now: Date): number {
-  const minute = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+function getZonedNowParts(timeZone: string): { day: number; hour: number; minute: number; second: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.filter((p) => p.type !== "literal").map((p) => [p.type, p.value]));
+  const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    day: dayMap[values.weekday] ?? 0,
+    hour: Number(values.hour ?? 0),
+    minute: Number(values.minute ?? 0),
+    second: Number(values.second ?? 0),
+  };
+}
+
+function getNowOperationalMinutes(now: { hour: number; minute: number; second: number }): number {
+  const minute = now.hour * 60 + now.minute + now.second / 60;
   return minute < 180 ? minute + 1440 : minute;
 }
 
-function computeNextTrain(station: string, directionKey: DirectionKey, now: Date) {
+function computeNextTrain(station: string, directionKey: DirectionKey) {
   const firstLast = samaraMetroIntervals.firstLastDepartures as Record<
     string,
     Record<DirectionKey, { weekdayFirst: string | null; weekendFirst: string | null; weekdayLast: string | null; weekendLast: string | null }>
@@ -85,13 +104,14 @@ function computeNextTrain(station: string, directionKey: DirectionKey, now: Date
   const stationSchedule = firstLast?.[station]?.[directionKey];
   if (!stationSchedule) return null;
 
-  const dayType = getDayType(now);
+  const zonedNow = getZonedNowParts(SAMARA_TIME_ZONE);
+  const dayType = getDayType(zonedNow.day);
   const first = parseClockToMinutes(dayType === "weekdays" ? stationSchedule.weekdayFirst : stationSchedule.weekendFirst);
   const lastRaw = parseClockToMinutes(dayType === "weekdays" ? stationSchedule.weekdayLast : stationSchedule.weekendLast);
   if (first === null || lastRaw === null) return null;
 
   const last = lastRaw < first ? lastRaw + 1440 : lastRaw;
-  const nowOp = getNowOperationalMinutes(now);
+  const nowOp = getNowOperationalMinutes(zonedNow);
   if (nowOp > last) return { ended: true as const };
   if (nowOp <= first) return { waitMinutes: first - nowOp, nextAt: first };
 
@@ -168,7 +188,7 @@ bot.on("callback_query", async (q: CallbackQuery) => {
 
     const lines: string[] = [];
     for (const direction of directions) {
-      const next = computeNextTrain(fromStation, direction.key, new Date());
+      const next = computeNextTrain(fromStation, direction.key);
       if (!next) {
         lines.push(`До ${stationGenitive(direction.terminal)} нет данных.`);
         continue;
