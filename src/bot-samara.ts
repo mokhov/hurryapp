@@ -10,10 +10,11 @@ if (!token) {
 }
 
 type DirectionKey = "toYungorodok" | "toAlabinskaya";
-type Session = { from?: string; lastSelectionKey?: string; lastSelectionAt?: number };
+type Session = { from?: string; lastSelectionKey?: string; lastSelectionAt?: number; lastStartMessageId?: number; lastStartAt?: number };
 const SAMARA_TIME_ZONE = "Europe/Samara";
 
 const sessions = new Map<number, Session>();
+const processedCallbacks = new Map<string, number>();
 const bot = new TelegramBot(token, { polling: true });
 
 function getSession(chatId: number): Session {
@@ -159,13 +160,7 @@ function stationsKeyboard(stations: string[]) {
   return { inline_keyboard: rows(buttons, 2) };
 }
 
-function startKeyboard() {
-  return {
-    inline_keyboard: [[{ text: "Следующий поезд", callback_data: "menu:next-train" }]],
-  };
-}
-
-function nextTrainKeyboard(station: string) {
+function nextTrainKeyboard() {
   return {
     inline_keyboard: [[{ text: "Другая станция", callback_data: "menu:next-train" }]],
   };
@@ -173,9 +168,14 @@ function nextTrainKeyboard(station: string) {
 
 bot.onText(/\/start|\/next/, async (msg: Message) => {
   if (!msg.chat) return;
-  sessions.set(msg.chat.id, {});
-  await bot.sendMessage(msg.chat.id, "Нажмите кнопку, чтобы выбрать станцию", {
-    reply_markup: startKeyboard(),
+  const s = getSession(msg.chat.id);
+  const nowMs = Date.now();
+  if (s.lastStartMessageId === msg.message_id && nowMs - (s.lastStartAt ?? 0) < 15000) return;
+  s.lastStartMessageId = msg.message_id;
+  s.lastStartAt = nowMs;
+  s.from = undefined;
+  await bot.sendMessage(msg.chat.id, "Откуда едете", {
+    reply_markup: stationsKeyboard(samaraMetroIntervals.stations),
   });
 });
 
@@ -183,8 +183,21 @@ bot.on("callback_query", async (q: CallbackQuery) => {
   if (!q.message?.chat?.id || !q.data) return;
   const chatId = q.message.chat.id;
   const s = getSession(chatId);
+  const nowMs = Date.now();
+  const prev = processedCallbacks.get(q.id);
+  if (prev && nowMs - prev < 15000) {
+    await bot.answerCallbackQuery(q.id).catch(() => {});
+    return;
+  }
+  processedCallbacks.set(q.id, nowMs);
+  for (const [id, ts] of processedCallbacks) {
+    if (nowMs - ts > 60000) processedCallbacks.delete(id);
+  }
 
   if (q.data === "menu:next-train") {
+    if (q.message.message_id) {
+      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: q.message.message_id }).catch(() => {});
+    }
     await bot.sendMessage(chatId, "Откуда едете", {
       reply_markup: stationsKeyboard(samaraMetroIntervals.stations),
     });
@@ -192,12 +205,11 @@ bot.on("callback_query", async (q: CallbackQuery) => {
     return;
   }
 
-  const selectedStation = q.data.startsWith("station:") ? q.data.slice(8) : q.data.startsWith("refresh:") ? q.data.slice(8) : null;
+  const selectedStation = q.data.startsWith("station:") ? q.data.slice(8) : null;
   if (selectedStation) {
     s.from = selectedStation;
     const fromStation = s.from;
     const selectionKey = `station:${fromStation}`;
-    const nowMs = Date.now();
     if (q.data.startsWith("station:") && s.lastSelectionKey === selectionKey && nowMs - (s.lastSelectionAt ?? 0) < 2000) {
       await bot.answerCallbackQuery(q.id);
       return;
@@ -205,7 +217,7 @@ bot.on("callback_query", async (q: CallbackQuery) => {
     s.lastSelectionKey = selectionKey;
     s.lastSelectionAt = nowMs;
     if (q.data.startsWith("station:") && q.message.message_id) {
-      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: q.message.message_id }).catch(() => {});
+      await bot.deleteMessage(chatId, q.message.message_id).catch(() => {});
     }
     const stations = samaraMetroIntervals.stations;
     const fromIdx = stations.indexOf(fromStation);
@@ -234,7 +246,7 @@ bot.on("callback_query", async (q: CallbackQuery) => {
     const headerTail = lines.length === 1 ? "ближайший поезд" : "ближайшие поезда";
     const header = `Станция «${fromStation}», ${headerTail}`;
     await bot.sendMessage(chatId, `${header}\n${lines.join("\n")}`, {
-      reply_markup: nextTrainKeyboard(fromStation),
+      reply_markup: nextTrainKeyboard(),
     });
 
     await bot.answerCallbackQuery(q.id);
