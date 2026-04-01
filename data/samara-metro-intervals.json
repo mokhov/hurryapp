@@ -1,0 +1,31 @@
+{
+  "source": "https://metrosamara.ru/passengers/intervals/?utm_source=chatgpt.com",
+  "updatedAt": "2026-04-01",
+  "averageIntervals": {
+    "weekdays": [
+      { "timeRange": "06:00-09:00", "minutes": "10" },
+      { "timeRange": "09:00-16:00", "minutes": "12.5" },
+      { "timeRange": "16:00-20:00", "minutes": "10" },
+      { "timeRange": "20:00-22:30", "minutes": "12.5" },
+      { "timeRange": "22:30-24:00", "minutes": "14-22" }
+    ],
+    "weekendsAndHolidays": [
+      { "timeRange": "06:00-07:00", "minutes": "10-18" },
+      { "timeRange": "07:00-22:00", "minutes": "12.5" },
+      { "timeRange": "22:00-23:00", "minutes": "14" },
+      { "timeRange": "23:00-24:00", "minutes": "13-26" }
+    ]
+  },
+  "stations": [
+    "Юнгородок",
+    "Кировская",
+    "Безымянка",
+    "Победа",
+    "Советская",
+    "Спортивная",
+    "Гагаринская",
+    "Московская",
+    "Российская",
+    "Алабинская"
+  ]
+}

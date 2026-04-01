@@ -1,0 +1,220 @@
+export type StationTravelTimes = {
+  station: string;
+  to: Record<string, string>;
+};
+
+export const samaraMetroIntervals = {
+  source: "https://metrosamara.ru/passengers/intervals/?utm_source=chatgpt.com",
+  updatedAt: "2026-04-01",
+  averageIntervals: {
+    weekdays: [
+      { timeRange: "06:00-09:00", minutes: "10" },
+      { timeRange: "09:00-16:00", minutes: "12.5" },
+      { timeRange: "16:00-20:00", minutes: "10" },
+      { timeRange: "20:00-22:30", minutes: "12.5" },
+      { timeRange: "22:30-24:00", minutes: "14-22" },
+    ],
+    weekendsAndHolidays: [
+      { timeRange: "06:00-07:00", minutes: "10-18" },
+      { timeRange: "07:00-22:00", minutes: "12.5" },
+      { timeRange: "22:00-23:00", minutes: "14" },
+      { timeRange: "23:00-24:00", minutes: "13-26" },
+    ],
+  },
+  firstLastDepartures: {
+    Юнгородок: {
+      toYungorodok: { weekdayFirst: null, weekendFirst: null, weekdayLast: null, weekendLast: null },
+      toAlabinskaya: { weekdayFirst: "06:04", weekendFirst: "06:04", weekdayLast: "00:02", weekendLast: "00:06" },
+    },
+    Кировская: {
+      toYungorodok: { weekdayFirst: "06:09", weekendFirst: "06:17", weekdayLast: "00:23", weekendLast: "00:21" },
+      toAlabinskaya: { weekdayFirst: "06:07", weekendFirst: "06:07", weekdayLast: "00:05", weekendLast: "00:09" },
+    },
+    Безымянка: {
+      toYungorodok: { weekdayFirst: "06:06", weekendFirst: "06:14", weekdayLast: "00:20", weekendLast: "00:18" },
+      toAlabinskaya: { weekdayFirst: "05:48", weekendFirst: "05:56", weekdayLast: "00:07", weekendLast: "00:11" },
+    },
+    Победа: {
+      toYungorodok: { weekdayFirst: "06:04", weekendFirst: "06:12", weekdayLast: "00:18", weekendLast: "00:16" },
+      toAlabinskaya: { weekdayFirst: "05:50", weekendFirst: "05:58", weekdayLast: "00:09", weekendLast: "00:13" },
+    },
+    Советская: {
+      toYungorodok: { weekdayFirst: "06:10", weekendFirst: "06:10", weekdayLast: "00:16", weekendLast: "00:14" },
+      toAlabinskaya: { weekdayFirst: "05:52", weekendFirst: "06:00", weekdayLast: "00:11", weekendLast: "00:15" },
+    },
+    Спортивная: {
+      toYungorodok: { weekdayFirst: "06:07", weekendFirst: "06:07", weekdayLast: "00:13", weekendLast: "00:12" },
+      toAlabinskaya: { weekdayFirst: "05:55", weekendFirst: "06:03", weekdayLast: "00:14", weekendLast: "00:18" },
+    },
+    Гагаринская: {
+      toYungorodok: { weekdayFirst: "06:05", weekendFirst: "06:05", weekdayLast: "00:11", weekendLast: "00:09" },
+      toAlabinskaya: { weekdayFirst: "05:57", weekendFirst: "06:05", weekdayLast: "00:17", weekendLast: "00:21" },
+    },
+    Московская: {
+      toYungorodok: { weekdayFirst: "06:02", weekendFirst: "06:02", weekdayLast: "00:09", weekendLast: "00:07" },
+      toAlabinskaya: { weekdayFirst: "06:00", weekendFirst: "06:08", weekdayLast: "00:19", weekendLast: "00:23" },
+    },
+    Российская: {
+      toYungorodok: { weekdayFirst: "05:59", weekendFirst: "05:59", weekdayLast: "00:06", weekendLast: "00:04" },
+      toAlabinskaya: { weekdayFirst: "06:02", weekendFirst: "06:10", weekdayLast: "00:22", weekendLast: "00:26" },
+    },
+    Алабинская: {
+      toYungorodok: { weekdayFirst: "05:57", weekendFirst: "05:57", weekdayLast: "00:04", weekendLast: "00:02" },
+      toAlabinskaya: { weekdayFirst: null, weekendFirst: null, weekdayLast: null, weekendLast: null },
+    },
+  },
+  stations: [
+    "Юнгородок",
+    "Кировская",
+    "Безымянка",
+    "Победа",
+    "Советская",
+    "Спортивная",
+    "Гагаринская",
+    "Московская",
+    "Российская",
+    "Алабинская",
+  ],
+  travelTimesLine1: [
+    {
+      station: "Юнгородок",
+      to: {
+        Кировская: "3:05",
+        Безымянка: "6:00",
+        Победа: "7:50",
+        Советская: "9:55",
+        Спортивная: "12:30",
+        Гагаринская: "15:00",
+        Московская: "17:40",
+        Российская: "20:00",
+        Алабинская: "22:05",
+      },
+    },
+    {
+      station: "Кировская",
+      to: {
+        Юнгородок: "3:05",
+        Безымянка: "2:50",
+        Победа: "4:45",
+        Советская: "6:50",
+        Спортивная: "9:25",
+        Гагаринская: "11:55",
+        Московская: "14:35",
+        Российская: "16:55",
+        Алабинская: "18:55",
+      },
+    },
+    {
+      station: "Безымянка",
+      to: {
+        Юнгородок: "5:45",
+        Кировская: "2:50",
+        Победа: "1:55",
+        Советская: "4:00",
+        Спортивная: "6:40",
+        Гагаринская: "9:05",
+        Московская: "11:45",
+        Российская: "14:10",
+        Алабинская: "16:05",
+      },
+    },
+    {
+      station: "Победа",
+      to: {
+        Юнгородок: "7:35",
+        Кировская: "4:40",
+        Безымянка: "1:55",
+        Советская: "2:10",
+        Спортивная: "4:40",
+        Гагаринская: "7:10",
+        Московская: "9:50",
+        Российская: "12:10",
+        Алабинская: "14:10",
+      },
+    },
+    {
+      station: "Советская",
+      to: {
+        Юнгородок: "9:50",
+        Кировская: "6:50",
+        Безымянка: "4:00",
+        Победа: "2:10",
+        Спортивная: "2:35",
+        Гагаринская: "5:10",
+        Московская: "7:45",
+        Российская: "10:05",
+        Алабинская: "12:15",
+      },
+    },
+    {
+      station: "Спортивная",
+      to: {
+        Юнгородок: "12:10",
+        Кировская: "9:15",
+        Безымянка: "6:25",
+        Победа: "4:35",
+        Советская: "2:25",
+        Гагаринская: "2:30",
+        Московская: "5:10",
+        Российская: "7:30",
+        Алабинская: "9:30",
+      },
+    },
+    {
+      station: "Гагаринская",
+      to: {
+        Юнгородок: "14:40",
+        Кировская: "11:45",
+        Безымянка: "9:00",
+        Победа: "7:05",
+        Советская: "4:55",
+        Спортивная: "2:35",
+        Московская: "2:30",
+        Российская: "5:00",
+        Алабинская: "7:00",
+      },
+    },
+    {
+      station: "Московская",
+      to: {
+        Юнгородок: "16:55",
+        Кировская: "14:00",
+        Безымянка: "11:10",
+        Победа: "9:25",
+        Советская: "7:10",
+        Спортивная: "4:45",
+        Гагаринская: "2:30",
+        Российская: "2:30",
+        Алабинская: "4:20",
+      },
+    },
+    {
+      station: "Российская",
+      to: {
+        Юнгородок: "19:40",
+        Кировская: "16:45",
+        Безымянка: "13:55",
+        Победа: "12:05",
+        Советская: "9:55",
+        Спортивная: "7:30",
+        Гагаринская: "5:00",
+        Московская: "2:30",
+        Алабинская: "2:30",
+      },
+    },
+    {
+      station: "Алабинская",
+      to: {
+        Юнгородок: "22:05",
+        Кировская: "19:05",
+        Безымянка: "16:20",
+        Победа: "14:25",
+        Советская: "12:15",
+        Спортивная: "9:50",
+        Гагаринская: "7:20",
+        Московская: "5:10",
+        Российская: "2:30",
+      },
+    },
+  ] as StationTravelTimes[],
+};

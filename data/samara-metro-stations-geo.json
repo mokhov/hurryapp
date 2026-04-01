@@ -1,0 +1,68 @@
+{
+  "city": "Самара",
+  "system": "Самарский метрополитен",
+  "line": "1",
+  "sourceNote": "Координаты собраны по энциклопедическим карточкам станций (GeoHack/Wikipedia), сверка выполнена 2026-04-01.",
+  "stations": [
+    {
+      "station": "Юнгородок",
+      "lat": 53.212472,
+      "lon": 50.2825,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Yungorodok_(Samara_Metro)&params=53.212472_N_50.2825_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Кировская",
+      "lat": 53.211417,
+      "lon": 50.268278,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Kirovskaya_(Samara_Metro)&params=53.211417_N_50.268278_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Безымянка",
+      "lat": 53.212578,
+      "lon": 50.247478,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Bezymyanka_(Samara_Metro)&params=53.212578_N_50.247478_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Победа",
+      "lat": 53.206369,
+      "lon": 50.235061,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Pobeda_(Samara_Metro)&params=53.206369_N_50.235061_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Советская",
+      "lat": 53.201767,
+      "lon": 50.221667,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Sovetskaya_(Samara_Metro)&params=53.201767_N_50.221667_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Спортивная",
+      "lat": 53.200806,
+      "lon": 50.200028,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Sportivnaya_(Samara_Metro)&params=53.200806_N_50.200028_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Гагаринская",
+      "lat": 53.200278,
+      "lon": 50.177472,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Gagarinskaya_(Samara_Metro)&params=53.200278_N_50.177472_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Московская",
+      "lat": 53.202806,
+      "lon": 50.159917,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Moskovskaya_(Samara_Metro)&params=53.202806_N_50.159917_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Российская",
+      "lat": 53.211981,
+      "lon": 50.148611,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Rossiyskaya_(Samara_Metro)&params=53.211981_N_50.148611_E_type:landmark_region:RU"
+    },
+    {
+      "station": "Алабинская",
+      "lat": 53.2097,
+      "lon": 50.1344,
+      "source": "https://geohack.toolforge.org/geohack.php?pagename=Alabinskaya_(Samara_Metro)&params=53.2097_N_50.1344_E_source:wikidata"
+    }
+  ]
+}
