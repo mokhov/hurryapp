@@ -15,6 +15,7 @@ const EKB_TIME_ZONE = "Asia/Yekaterinburg";
 
 const sessions = new Map<number, Session>();
 const processedCallbacks = new Map<string, number>();
+const processedMenuByButtonMessageId = new Map<string, number>();
 const bot = new TelegramBot(token, { polling: true });
 
 function getSession(chatId: number): Session {
@@ -177,6 +178,18 @@ bot.on("callback_query", async (q: CallbackQuery) => {
       return;
     }
     s.lastMenuAt = nowMs;
+
+    // Дедуп по конкретному сообщению с кнопкой: иногда Telegram присылает
+    // повторный callback на ту же кнопку (разные q.id), и тогда может уйти
+    // два раза bot.sendMessage("Откуда едете").
+    const menuKey = `${chatId}:${q.message.message_id ?? 0}`;
+    const prevMenu = processedMenuByButtonMessageId.get(menuKey);
+    if (prevMenu !== undefined && nowMs - prevMenu < 5000) {
+      await bot.answerCallbackQuery(q.id).catch(() => {});
+      return;
+    }
+    processedMenuByButtonMessageId.set(menuKey, nowMs);
+
     if (q.message.message_id) {
       await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: q.message.message_id }).catch(() => {});
     }
