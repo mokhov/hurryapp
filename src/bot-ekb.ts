@@ -10,7 +10,7 @@ if (!token) {
 }
 
 type DirectionKey = "toYungorodok" | "toAlabinskaya";
-type Session = { from?: string; lastSelectionKey?: string; lastSelectionAt?: number; lastStartMessageId?: number; lastStartAt?: number };
+type Session = { from?: string; lastSelectionKey?: string; lastSelectionAt?: number; lastStartMessageId?: number; lastStartAt?: number; lastMenuAt?: number };
 const EKB_TIME_ZONE = "Asia/Yekaterinburg";
 
 const sessions = new Map<number, Session>();
@@ -172,6 +172,11 @@ bot.on("callback_query", async (q: CallbackQuery) => {
   }
 
   if (q.data === "menu:next-train") {
+    if (s.lastMenuAt !== undefined && nowMs - s.lastMenuAt < 1500) {
+      await bot.answerCallbackQuery(q.id).catch(() => {});
+      return;
+    }
+    s.lastMenuAt = nowMs;
     if (q.message.message_id) {
       await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: q.message.message_id }).catch(() => {});
     }
