@@ -16,7 +16,8 @@
     "start:bot:ekb": "node dist/bot-ekb.js",
     "start:bot:samara": "node dist/bot-samara.js",
     "start:bot:omsk": "node dist/bot-omsk.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "rebuild:ekb-weekdays": "tsx scripts/rebuild-ekb-weekdays-from-raw-ocr.ts"
   },
   "keywords": [
     "nodejs",

@@ -245,7 +245,9 @@ for (const station of Object.keys(fullDetailedDepartures)) {
 }
 
 export const ekaterinburgMetro = {
-  source: "https://metro-ektb.ru/rezhim-raboty-metropolitena-grafik_12/?utm_source=chatgpt.com",
+  source: "https://metro-ektb.ru/rezhim-raboty-metropolitena-grafik_12/",
+  /** Картинки расписаний по станциям; будни в данных — OCR + правка двустрочных ячеек (см. rebuild-ekb-weekdays). */
+  sourceStationWeekdayGraphics: "https://metro-ektb.ru/rezhim-raboty-metropolitena-grafik_1211/",
   updatedAt: "2026-04-01",
   directionLabels: {
     toYungorodok: "До Проспекта Космонавтов",
